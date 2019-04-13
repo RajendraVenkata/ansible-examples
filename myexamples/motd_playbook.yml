@@ -1,0 +1,14 @@
+---
+-
+hosts: centoshosts
+user: root
+
+tasks: 
+    -name: Configure a MOTD (message of the day)
+     copy:
+        src: centos_motd
+        dest: /etc/motd
+        
+
+
+...
