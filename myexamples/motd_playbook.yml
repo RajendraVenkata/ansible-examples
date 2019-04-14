@@ -1,8 +1,8 @@
 ---
 -
     #Target: where our play books will run and with what options
-    hosts: centoshosts
-    user: root
+    #hosts: centoshosts
+    #user: root
 
     #Tasks: the list of tasks that will be executed with the playbook
     tasks: 
