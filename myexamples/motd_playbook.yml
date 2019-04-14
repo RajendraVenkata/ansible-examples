@@ -1,6 +1,6 @@
 ---
 - name: Display MOTD playbook
-  hosts: centoshosts
+  hosts: all
   gather_facts: false
   tasks: 
     - name: Configure a MOTD (message of the day)
