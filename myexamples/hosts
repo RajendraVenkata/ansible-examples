@@ -1,0 +1,14 @@
+[linux-servers]
+USCOWQSDEQ12
+[windows-servers]
+USCOWDSDAD01
+[windows-servers:vars]
+ansible_user=jd1adm
+ansible_password=trUme+@zaPestA4R
+ansible_connection=winrm
+[linux-servers:vars]
+ansible_user=pa_paler5
+ansible_password=zd:rZE}qP?{t5Y4I
+ansible_become=yes
+ansible_become_user=eq1adm
+ansible_become_pass=zd:rZE}qP?{t5Y4I

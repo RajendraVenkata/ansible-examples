@@ -1,0 +1,18 @@
+---
+- name: Playbook for checking HANA Services
+  hosts: linux-servers,localhost
+  gather_facts: false
+  tasks:
+    - name: Transfer and execute script
+      copy: src=./hana_checks.sh dest=/tmp/hana_checks.sh mode=775
+      register: chkcmd
+      when: "'USCOW' in inventory_hostname"
+    - name: Run ls command
+      command: "sh /tmp/hana_checks.sh"
+      ignore_errors: true
+      register: chkcmd
+      when: "'USCOW' in inventory_hostname"
+    - name: Push the check results to Splunk
+      command: "sh ./push_to_splunk.sh '{{hostvars[item]['chkcmd']['stdout']}}'"
+      with_items: "{{groups['linux-servers']}}"
+      when: "'localhost' in inventory_hostname"
