@@ -1,0 +1,5 @@
+---
+- name: Playbook for checking HANA Services
+    - name: Save the result of 'whoami' in 'whoami_out'
+      win_command: wmic qfe list
+      register: whoami_out

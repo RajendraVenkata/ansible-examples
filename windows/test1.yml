@@ -1,21 +1,20 @@
 ---
-- name: Playbook for checking All HANA Services
+- name: Playbook for checking HANA Services
   hosts: all,localhost
   gather_facts: false
   tasks:
-    #first transfer all the required scripts to the remote SAP hosts
+
     - name: Transfer scripts to remote systems
       copy: src=./scripts/{{ item }} dest=/tmp/ mode=775
       register: chkcmd
       with_items:
-        - hana_checks.sh
+        - hana_availability_checks.sh
         - sap_instance_list.sh
         - hana_back_check.sh
         - hana_sr_state.sh
         - hana_repl_status.sh
       when: "'localhost' not in inventory_hostname"
-    #Now run the host control command to fetch all the instances.
-    #This script returns SID1:InstNr1,SID2:InstNr2...
+
     - name: Run hostctrl command
       command: "sh /tmp/sap_instance_list.sh"
       ignore_errors: true
@@ -23,18 +22,16 @@
       become_user: sapadm
       register: chkcmd1
       when: "'localhost' not in inventory_hostname"
-    #Now execute the availability script to check the process availability
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Run availability command
-      command: "sh /tmp/hana_checks.sh {{item}} {{inventory_hostname}}"
+      command: "sh /tmp/hana_availability_checks.sh {{item}} {{inventory_hostname}}"
       ignore_errors: true
       become: yes
       become_user: "{{ item.split(':')[0] | lower }}adm"
       register: chkcmd2
       with_items: "{{hostvars[inventory_hostname]['chkcmd1']['stdout'].split(',')}}"
       when: "'localhost' not in inventory_hostname"
-    #Now execute the backup script to check the backup details
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Run backup check command
       command: "sh /tmp/hana_back_check.sh {{item}} {{inventory_hostname}}"
       ignore_errors: true
@@ -43,8 +40,7 @@
       register: chkcmd3
       with_items: "{{hostvars[inventory_hostname]['chkcmd1']['stdout'].split(',')}}"
       when: "'localhost' not in inventory_hostname"
-    #Now execute the replication status script to check the backup details
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Run Replication Status check command
       command: "sh /tmp/hana_repl_status.sh {{item}} {{inventory_hostname}}"
       ignore_errors: true
@@ -53,8 +49,7 @@
       register: chkcmd4
       with_items: "{{hostvars[inventory_hostname]['chkcmd1']['stdout'].split(',')}}"
       when: "'localhost' not in inventory_hostname"
-    #Now execute the SR status script to check the replicaton status details
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Run SR state command
       command: "sh /tmp/hana_sr_state.sh {{item}} {{inventory_hostname}}"
       ignore_errors: true
@@ -63,86 +58,67 @@
       register: chkcmd5
       with_items: "{{hostvars[inventory_hostname]['chkcmd1']['stdout'].split(',')}}"
       when: "'localhost' not in inventory_hostname"
-      
-    #Now execute the SR status script to check the replicaton status details
-    #This is looped across all the hosts and SIDs required by the hostcontrol
-    - name: Run SR state command
-      command: "sh /tmp/hana_sr_state.sh {{item}} {{inventory_hostname}}"
-      ignore_errors: true
-      become: yes
-      become_user: "{{ item.split(':')[0] | lower }}adm"
-      register: chkcmd5
-      with_items: "{{hostvars[inventory_hostname]['chkcmd1']['stdout'].split(',')}}"
-      when: "'localhost' not in inventory_hostname"      
-      
-    #Now push the availability data to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Push the check results to Splunk Nesetd
       become: no
-      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_am_sap' 'sap:ansible:monitor'"
+      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_gl_sap' 'sap:ansible:monitor'"
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd2']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the backup data to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
+
     - name: Push the backup results to Splunk Nesetd
       become: no
-      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_am_sap' 'sap:ansible:monitor'"
+      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_gl_sap' 'sap:ansible:monitor'"
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd3']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the replication data to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Push the replication results to Splunk Nesetd
       become: no
-      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_am_sap' 'sap:ansible:monitor'"
+      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_gl_sap' 'sap:ansible:monitor'"
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd4']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the sr_state data to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Push the SRState results to Splunk Nesetd
       become: no
-      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_am_sap' 'sap:ansible:monitor'"
+      command: "python ./scripts/csv2json.py  '{{ item[1]['stdout']}}' 'bhp_oi_gl_sap' 'sap:ansible:monitor'"
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd5']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the availability script errors to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
-    - name: Push the availability check script errors to Splunk Nesetd
+
+    - name: Push the check script errors to Splunk Nesetd
       become: no
-      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_am_sap\" \"sap:ansible:errors\""
+      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_gl_sap\" \"sap:ansible:errors\""
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd2']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the backup script errors to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Push the backup script errors to Splunk Nesetd
       become: no
-      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_am_sap\" \"sap:ansible:errors\""
+      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_gl_sap\" \"sap:ansible:errors\""
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd3']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the replication status script errors to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
+
     - name: Push the replication status errors to Splunk Nesetd
       become: no
-      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_am_sap\" \"sap:ansible:errors\""
+      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_gl_sap\" \"sap:ansible:errors\""
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd4']['results'] }}"
       when: "'localhost' in inventory_hostname"
-    #Now push the sr_state script errors to Splunk
-    #This is looped across all the hosts and SIDs required by the hostcontrol
-    - name: Push the sr state status errors to Splunk Nesetd
+
+    - name: Push the st state status errors to Splunk Nesetd
       become: no
-      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_am_sap\" \"sap:ansible:errors\""
+      command: "python ./scripts/errors_csv2json.py  \"{{ item[0] }}\" \"{{ item[1]['cmd']}}\" \"{{ item[1]['stderr_lines'] | regex_replace('\\\"','')}}\" \"bhp_oi_gl_sap\" \"sap:ansible:errors\""
       with_nested:
         - "{{ groups['all'] }}"
         - "{{ hostvars['USCOWQSDEQ12']['chkcmd5']['results'] }}"
